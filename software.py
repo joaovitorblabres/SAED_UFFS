@@ -28,20 +28,13 @@ ser = serial.Serial(
     baudrate=9600,
     parity=serial.PARITY_NONE,
     stopbits=serial.STOPBITS_TWO,
-    bytesize=serial.EIGHTBITS
+    bytesize=serial.EIGHTBITS,
+    timeout=1
 )
 # ser.isOpen()
 ## TESTES COM VIRTUALIZACAO
 #ser2 = serial.Serial(
 #    port='/dev/tnt0',
-#    baudrate=9600,
-#    parity=serial.PARITY_ODD,
-#    stopbits=serial.STOPBITS_TWO,
-#    bytesize=serial.EIGHTBITS
-#)
-
-#ser3 = serial.Serial(
-#    port='/dev/tnt1',
 #    baudrate=9600,
 #    parity=serial.PARITY_ODD,
 #    stopbits=serial.STOPBITS_TWO,
@@ -55,9 +48,6 @@ globInter = 0
 
 def func(x, a, c, d):
     return a*np.exp(-c*x)+d
-
-# def func(t, a, b):
-#     return a + b * np.log(t)
 
 def frange(a, b, p = 0.01):
 	l = []
@@ -101,9 +91,6 @@ def exponencial2(X, Y):
     a.set_title(funcao2, fontsize=11)
     a.plot([x for x in frange(int(X[0])-10, int(X[len(X)-1])+10)], [f2(x) for x in frange(int(X[0])-10, int(X[len(X)-1])+10)], label="Fitted Curve")
     plt.show()
-
-# def func(x, a, b, c):
-#     return a * np.exp(-b * x) + c
 
 def mountFuncTeste(a, c, d):
     return "{}*exp(-{}*x)+{}".format(a, c, d)
@@ -163,6 +150,7 @@ class Application(tk.Frame):
     tt = dt.timetuple()
     i = 0
     strDate = ""
+
     for it in tt:
         if(i < 4):
             strDate += str(it) + "_"
@@ -185,12 +173,32 @@ class Application(tk.Frame):
         self.pack()
         self.create_widgets()
 
+    def receive():
+        while(1):.
+            reading = ser.readline()
+            leng = len(reading)
+            saida = ''
+            if(leng > 4):
+                for i in range(0, leng-6, 4):
+                    saida += reading.decode()[i+2]
+                    saida += reading.decode()[i+3]
+                readed = codecs.decode(saida, "hex")
+                readed = readed.split("=")
+                fileName = "temperature_" + Board + "_" + self.strDate + ".csv"
+                with open(fileName, 'a') as csvfile:
+                    spamwriter = csv.writer(csvfile, delimiter=';', quoting=csv.QUOTE_MINIMAL)
+                    spamwriter.writerow(readed[1].split(';'))
+                    csvfile.close()
+            time.sleep(1)
+    tempera = threading.Thread(target=receive, daemon=True)
+
     def confs(self):
         self.master.title("Software SAED")
         self.master.maxsize(1000, 600)
         self.master.minsize(1000, 600)
 
     def create_widgets(self):
+        self.tempera.start()
         self.canvas = FigureCanvasTkAgg(f, self)
         self.canvas.draw()
         self.canvas.get_tk_widget().pack(side=tk.BOTTOM, anchor = S, fill=tk.BOTH)
@@ -210,6 +218,7 @@ class Application(tk.Frame):
         self.confs = tk.Button(self, command=self.configuracoes)
         self.confs.config(image=self.confPng)
         self.confs.image = self.confPng
+
         self.quit = tk.Button(self, command=root.destroy)
         self.quit.config(image=self.exitPng)
         self.quit.image = self.exitPng
@@ -306,26 +315,13 @@ class Application(tk.Frame):
         for kl in range(1, self.boards+1):
             x = "B" + str(kl) + "|" + "\n"
             Board = "B" + str(kl) + "|"
-            print("enviando "+x)
-            #ser.writable()
-            #ser.write(x.encode())
-            #ser.readable()
-            #reading = ser.readline().decode()
 
-            if(ser.is_open == False):
-                ser.open()
-            ser.write(codecs.encode(x.encode(), "hex").upper())
-            time.sleep(.3)
-            reading = ser.readline().decode()
-            ser.close()
-            print(reading)
             fileName = "temperature_" + Board + "_" + self.strDate + ".csv"
-            with open(fileName, 'a') as csvfile:
-                spamwriter = csv.writer(csvfile, delimiter=';', quoting=csv.QUOTE_MINIMAL)
-                spamwriter.writerow(reading.rstrip('\n').split(';'))
-                csvfile.close()
-            med = reading.rstrip('\n').split(';')
-            media = map(float, med)
+            with open(fileName, 'r') as csvfile:
+                spamreader = csv.reader(csvfile, delimiter=';', quotechar='|')
+                for row in reversed(spamreader):
+                    med = row.rstrip('\n').rstrip('=').split(';')
+            media = map(float, med[2:])
             result = 0
             sens = []
             for b in media:
