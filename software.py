@@ -44,7 +44,7 @@ class Application(tk.Frame):
     tempTotal = []
     yTotal = []
     t = 0
-    sensor = 6
+    sensor = 5
     boards = 1
     intervalo = 6
     filesPath = "./"
@@ -87,8 +87,6 @@ class Application(tk.Frame):
             except:
                 print("Erro de leitura, confira a conexão")
                 time.sleep(2)
-                ser3.open()
-                
             if(leng > 8*4*5):
                 try:
                     readed2str = bytearray(reading)
@@ -102,18 +100,42 @@ class Application(tk.Frame):
                         saida += readed2str.decode()[i+3]
                     readed = codecs.decode(saida, "hex")
                     readed = readed.decode("utf-8").split("=")
-                    print(readed[1].split(';')[:Application.sensor-1])
+                    readed[1] += '0'
+                    complete = []
                     fileName = "temperature_" + readed[0] + "_" + Application.strDate + ".csv"
+                    media = 0
+                    tSensores = Application.sensor
+                    for i in range(0, tSensores):
+                        val = float(readed[1].split(';')[i]) - 11
+                        complete.append(val)
+                        media += val
+                    media /= tSensores
+                    j = 1
+                    print(complete[:Application.sensor])
+                    for b in complete:
+                        if((b < (media - 10)) or (b > (media + 10))):
+                            tkMessageBox.showerror("Atencao", "Sensor " + str(j) +" esta com um diferenca grande de temperatura em relacao aos demais")
+                        elif((b < (media - 5)) or (b > (media + 5))):
+                            tkMessageBox.showwarning("Atencao","Sensor " + str(j) +" esta com um diferenca pequena de temperatura em relacao aos demais")
+                        j += 1
                     with open(fileName, 'a') as csvfile:
                         spamwriter = csv.writer(csvfile, delimiter=';', quoting=csv.QUOTE_MINIMAL)
-                        spamwriter.writerow(readed[1].split(';')[:Application.sensor-1])
+                        spamwriter.writerow(complete[:Application.sensor])
                         csvfile.close()
+                    time.sleep(Application.intervalo-2)                    
                 except:
                     print("Erro de conversão, aguarde a próxima tentativa")
+                
+            try:
                 ser3.close()
                 time.sleep(2)
                 ser3.open()
-
+            except:
+                print("Problema no serial, reiniciando")
+                try:
+                    ser3.open()
+                except:
+                    pass
     tempera = threading.Thread(target=receive, daemon=True)
 
     def confs(self):
@@ -157,10 +179,10 @@ class Application(tk.Frame):
         self.upload.image = self.uplPng
         self.upload.pack(anchor=NE, side="right")
 
-        self.getTemperature = tk.Button(self, font = "Verdana 10 bold")
-        self.getTemperature["text"] = "Adquirir temperatura"
-        self.getTemperature["command"] = self.getTemp
-        self.getTemperature.pack(side="bottom", ipadx=10, ipady=5)
+        #self.getTemperature = tk.Button(self, font = "Verdana 10 bold")
+        #self.getTemperature["text"] = "Adquirir temperatura"
+        #self.getTemperature["command"] = self.getTemp
+        #self.getTemperature.pack(side="bottom", ipadx=10, ipady=5)
 
     def importFile(self):
         pack = filedialog.askopenfilename(initialdir = self.filesPath)
@@ -199,12 +221,12 @@ class Application(tk.Frame):
         self.interv.insert(0, self.intervalo)
         self.interv.pack(expand=1, pady=2)
 
-        self.lbQtd = tk.Label(self.toplevel, text = "Quantidade de leituras a serem realizadas:")
-        self.lbQtd.pack(expand=1, pady=2)
-        self.leituras = tk.Entry(self.toplevel, text = self.qtdLeituras)
-        self.leituras.delete(0, END)
-        self.leituras.insert(0, self.qtdLeituras)
-        self.leituras.pack(expand=1, pady=2)
+        #self.lbQtd = tk.Label(self.toplevel, text = "Quantidade de leituras a serem realizadas:")
+        #self.lbQtd.pack(expand=1, pady=2)
+        #self.leituras = tk.Entry(self.toplevel, text = self.qtdLeituras)
+        #self.leituras.delete(0, END)
+        #self.leituras.insert(0, self.qtdLeituras)
+        #self.leituras.pack(expand=1, pady=2)
 
         self.lbPath = tk.Label(self.toplevel, text = "Local para salvar os dados:")
         self.lbPath.pack(expand=1, pady=2)
@@ -213,12 +235,12 @@ class Application(tk.Frame):
         self.pathB = tk.Button(self.toplevel, text = "Selecionar", command=self.changePath)
         self.pathB.pack(expand=1, pady=2)
 
-        self.lbTemp = tk.Label(self.toplevel, text = "Tipo de graus:")
-        self.lbTemp.pack(expand=1, pady=2)
-        self.tempType = tk.Radiobutton(self.toplevel, text="Celsius", variable=self.typeTemp, value="0")
-        self.tempType.pack(expand=1, pady=2)
-        self.tempType = tk.Radiobutton(self.toplevel, text="Fahrenheit", variable=self.typeTemp, value="1")
-        self.tempType.pack(expand=1, pady=2)
+       # self.lbTemp = tk.Label(self.toplevel, text = "Tipo de graus:")
+        #self.lbTemp.pack(expand=1, pady=2)
+        #self.tempType = tk.Radiobutton(self.toplevel, text="Celsius", variable=self.typeTemp, value="0")
+        #self.tempType.pack(expand=1, pady=2)
+        #self.tempType = tk.Radiobutton(self.toplevel, text="Fahrenheit", variable=self.typeTemp, value="1")
+        #self.tempType.pack(expand=1, pady=2)
 
         #Fahrenheit = 9.0/5.0 * Celsius + 32
 
@@ -252,46 +274,46 @@ class Application(tk.Frame):
                 med = row.rstrip('\n').rstrip('=').split(';')
         return med
 
-    def temps(self):
-        ABOUT_TEXT = "ADQUIRINDO TEMPERATURA DOS SENSORES"
-        toplevel = tk.Toplevel(master=self.master)
-        self.label1 = tk.Label(toplevel, text=ABOUT_TEXT, height=0, width=50)
-        self.label1.pack()
-        for kl in range(1, self.boards+1):
-            x = "B" + str(kl) + "|" + "\n"
-            Board = "B" + str(kl)
-            fileName = "temperature_" + Board + "_" + self.strDate + ".csv"
-            med = self.getFile(fileName)
-            media = map(float, med[2:])
-            result = 0
-            sens = []
-            for b in media:
-                result += b
-                sens.append(b)
-            result /= self.sensor
-            j = 1
-            for b in sens:
-                if((b < (result - 10)) or (b > (result + 10))):
-                    tkMessageBox.showerror("Atencao", "Sensor " + str(j) +" esta com um diferenca grande de temperatura em relacao aos demais")
-                elif((b < (result - 3)) or (b > (result + 3))):
-                    tkMessageBox.showwarning("Atencao","Sensor " + str(j) +" esta com um diferenca pequena de temperatura em relacao aos demais")
-                j += 1
-        toplevel.destroy()
+    #def temps(self):
+    #    ABOUT_TEXT = "ADQUIRINDO TEMPERATURA DOS SENSORES"
+    #    toplevel = tk.Toplevel(master=self.master)
+    #    self.label1 = tk.Label(toplevel, text=ABOUT_TEXT, height=0, width=50)
+    #    self.label1.pack()
+    #    for kl in range(1, self.boards+1):
+    #        x = "B" + str(kl) + "|" + "\n"
+    #        Board = "B" + str(kl)
+    #        fileName = "temperature_" + Board + "_" + self.strDate + ".csv"
+    #        med = self.getFile(fileName)
+    #        media = map(float, med[2:])
+    #        result = 0
+    #        sens = []
+    #        for b in media:
+    #            result += b
+    #            sens.append(b)
+    #        result /= self.sensor
+    #        j = 1
+    #        for b in sens:
+    #            if((b < (result - 10)) or (b > (result + 10))):
+    #                tkMessageBox.showerror("Atencao", "Sensor " + str(j) +" esta com um diferenca grande de temperatura em relacao aos demais")
+    #            elif((b < (result - 3)) or (b > (result + 3))):
+    #                tkMessageBox.showwarning("Atencao","Sensor " + str(j) +" esta com um diferenca pequena de temperatura em relacao aos demais")
+    #            j += 1
+    #    toplevel.destroy()
 
-    def getTemp(self):
-        temp = threading.Thread(target=self.controleLeituras)
-        temp.start()
-        temp.join(timeout=self.intervalo)
+    #def getTemp(self):
+    #    temp = threading.Thread(target=self.controleLeituras)
+    #    temp.start()
+    #    temp.join(timeout=self.intervalo)
 
-    def controleLeituras(self):
-        i = 0
-        while(i < self.qtdLeituras):
-            temp = threading.Thread(target=self.temps)
-            temp.start()
-            temp.join(timeout=self.intervalo)
-            time.sleep(self.intervalo)
-            i += 1
-        return
+    #def controleLeituras(self):
+    #    i = 0
+    #    while(i < self.qtdLeituras):
+    #        temp = threading.Thread(target=self.temps)
+    #        temp.start()
+    #        temp.join(timeout=self.intervalo)
+    #        time.sleep(self.intervalo)
+    #        i += 1
+    #    return
 
     def chargeConfFile(self):
         global globInter
