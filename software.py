@@ -8,7 +8,7 @@ import matplotlib.animation as animation
 import matplotlib
 import matplotlib.pyplot as plt
 import threading
-import serial
+import serial, serial.rs485
 from math import *
 from numpy import *
 from tkinter import BOTH, END, LEFT, font, N, NE, NW, W, S
@@ -23,13 +23,12 @@ from PIL import ImageTk, Image
 from datetime import datetime
 from multiprocessing import Process
 
-ser = serial.Serial(
-    port='/dev/ttyS0',
+ser3 = serial.Serial(
+    port='/dev/serial0',
     baudrate=9600,
     parity=serial.PARITY_NONE,
     stopbits=serial.STOPBITS_TWO,
-    bytesize=serial.EIGHTBITS,
-    timeout=1
+    bytesize=serial.EIGHTBITS
 )
 # ser.isOpen()
 ## TESTES COM VIRTUALIZACAO
@@ -40,105 +39,6 @@ ser = serial.Serial(
 #    stopbits=serial.STOPBITS_TWO,
 #    bytesize=serial.EIGHTBITS
 #)
-
-f = Figure(figsize=(6,4), dpi=100)
-a = f.add_subplot(1, 1, 1)
-pCounter = 0
-globInter = 0
-
-def func(x, a, c, d):
-    return a*np.exp(-c*x)+d
-
-def frange(a, b, p = 0.01):
-	l = []
-	while a <= b:
-		l.append(a)
-		a += p
-	return l
-
-def MountFunE(coef):
-	func = ""
-	func += "%f*exp(%f*x)"%(exp(coef[1]), coef[0])
-	return func
-
-def mountFunc(a, c, d):
-    return "{:.4f}*exp({:.4f}*x)+{:.4f}".format(a, c, d)
-
-def ajustePolinomialE(Y, A):
-    lnY = zeros(shape=(len(Y)))
-    for i in range(0, len(Y)):
-        lnY[i] = log(Y[i])
-        At = A.transpose()
-    return dot(inv(dot(At, A)), dot(At, lnY))
-
-def exponencial2(X, Y):
-    global pCounter
-    A = zeros(shape=(len(X), 2))
-    for i in range (0, len(X)):
-        expo = 1;
-        for j in range (0, 2):
-            A[i][j] = X[i]**expo
-            expo -= 1
-
-    function2 = ajustePolinomialE(Y, A)
-    funcao2 = MountFunE(function2)
-    pCounter += 1
-    if((pCounter % 10) == 0):
-        print("Y = %s"%(funcao2))
-    f2 = lambda x : eval(funcao2)
-    a.set_xlim(X[0]-10, X[len(X)-1]+10)
-    a.set_ylim(Y[len(Y)-1]-10, Y[0]+10)
-    a.set_title(funcao2, fontsize=11)
-    a.plot([x for x in frange(int(X[0])-10, int(X[len(X)-1])+10)], [f2(x) for x in frange(int(X[0])-10, int(X[len(X)-1])+10)], label="Fitted Curve")
-    plt.show()
-
-def mountFuncTeste(a, c, d):
-    return "{}*exp(-{}*x)+{}".format(a, c, d)
-
-def expo(X, Y):
-    x = np.array(X)
-    y = np.array(Y)
-    popt, pcov = curve_fit(func, x, y, p0=(1, 1e-2, 1e-2), maxfev=50000)
-    xx = np.linspace(x[0]-60, len(x)*10+60, 1000)
-    yy = func(xx, *popt)
-    print(mountFuncTeste(*popt))
-    a.set_xlim(x[0]-10, x[len(x)-1]+10)
-    a.set_ylim(y[len(y)-1]-10, y[0]+10)
-    a.set_title(mountFuncTeste(*popt), fontsize=11)
-    f2 = lambda x : eval(mountFuncTeste(*popt))
-    a.plot([x for x in frange(int(x[0])-10, int(x[len(x)-1])+10)], [f2(x) for x in frange(int(x[0])-10, int(x[len(x)-1])+10)], label="Fitted Curve")
-    plt.show()
-
-def animate(i = 1, name = ""):
-    i = 1
-    Board = "B1"
-    if(name == ""):
-        fileName = "temperature_" + Board + "_" + Application.strDate + ".csv"
-    else:
-        fileName = name
-    pullData = open(fileName,"r").read()
-    dataList = pullData.split('\n')
-    Application.tempTotal = []
-    Application.yTotal = []
-    a.clear()
-    for line in dataList:
-        if line:
-            lines = line.strip().split(';')
-            try:
-                lines = list(map(float, lines[1:]))
-                Application.tempTotal.append(sum(lines)/Application.sensor)
-                Application.yTotal.append(i*globInter)
-            except Exception as e:
-                pass
-
-            i += 1
-    Application.t = i
-    a.set_xlabel('Time')
-    a.set_ylabel('Temperature (C)')
-    a.plot(Application.yTotal, Application.tempTotal, 'ro')
-    plt.show()
-    if(Application.t > 8):
-        expo(Application.yTotal, Application.tempTotal)
 
 class Application(tk.Frame):
     tempTotal = []
@@ -177,24 +77,43 @@ class Application(tk.Frame):
         self.create_widgets()
 
     def receive():
-        if(ser.isOpen() == False):
-            ser.open()
         while(1):
-            reading = ser.readline()
-            leng = len(reading)
-            saida = ''
-            if(leng > 4):
-                for i in range(0, leng-6, 4):
-                    saida += reading.decode()[i+2]
-                    saida += reading.decode()[i+3]
-                readed = codecs.decode(saida, "hex")
-                readed = readed.split("=")
-                fileName = "temperature_" + Board + "_" + self.strDate + ".csv"
-                with open(fileName, 'a') as csvfile:
-                    spamwriter = csv.writer(csvfile, delimiter=';', quoting=csv.QUOTE_MINIMAL)
-                    spamwriter.writerow(readed[1].split(';'))
-                    csvfile.close()
-            time.sleep(1)
+            leng = 0
+            try:
+                ser3.flushInput()
+                reading = ser3.readline()
+                leng = len(reading)
+                saida = ''
+            except:
+                print("Erro de leitura, confira a conexão")
+                time.sleep(2)
+                ser3.open()
+                
+            if(leng > 8*4*5):
+                try:
+                    readed2str = bytearray(reading)
+                    #reading.replace('\xad', '')
+                    try:
+                        readed2str[:1].decode()
+                    except:
+                        del readed2str[0]
+                    for i in range(0, leng-6, 4):
+                        saida += readed2str.decode()[i+2]
+                        saida += readed2str.decode()[i+3]
+                    readed = codecs.decode(saida, "hex")
+                    readed = readed.decode("utf-8").split("=")
+                    print(readed[1].split(';')[:Application.sensor-1])
+                    fileName = "temperature_" + readed[0] + "_" + Application.strDate + ".csv"
+                    with open(fileName, 'a') as csvfile:
+                        spamwriter = csv.writer(csvfile, delimiter=';', quoting=csv.QUOTE_MINIMAL)
+                        spamwriter.writerow(readed[1].split(';')[:Application.sensor-1])
+                        csvfile.close()
+                except:
+                    print("Erro de conversão, aguarde a próxima tentativa")
+                ser3.close()
+                time.sleep(2)
+                ser3.open()
+
     tempera = threading.Thread(target=receive, daemon=True)
 
     def confs(self):
@@ -402,6 +321,107 @@ class Application(tk.Frame):
         file.write(str(self.qtdLeituras))
         file.write("\n")
         file.close()
+
+
+f = Figure(figsize=(6,4), dpi=100)
+a = f.add_subplot(1, 1, 1)
+pCounter = 0
+globInter = 0
+
+def func(x, a, c, d):
+    return a*np.exp(-c*x)+d
+
+def frange(a, b, p = 0.01):
+	l = []
+	while a <= b:
+		l.append(a)
+		a += p
+	return l
+
+def MountFunE(coef):
+	func = ""
+	func += "%f*exp(%f*x)"%(exp(coef[1]), coef[0])
+	return func
+
+def mountFunc(a, c, d):
+    return "{:.4f}*exp({:.4f}*x)+{:.4f}".format(a, c, d)
+
+def ajustePolinomialE(Y, A):
+    lnY = zeros(shape=(len(Y)))
+    for i in range(0, len(Y)):
+        lnY[i] = log(Y[i])
+        At = A.transpose()
+    return dot(inv(dot(At, A)), dot(At, lnY))
+
+def exponencial2(X, Y):
+    global pCounter
+    A = zeros(shape=(len(X), 2))
+    for i in range (0, len(X)):
+        expo = 1;
+        for j in range (0, 2):
+            A[i][j] = X[i]**expo
+            expo -= 1
+
+    function2 = ajustePolinomialE(Y, A)
+    funcao2 = MountFunE(function2)
+    pCounter += 1
+    if((pCounter % 10) == 0):
+        print("Y = %s"%(funcao2))
+    f2 = lambda x : eval(funcao2)
+    a.set_xlim(X[0]-10, X[len(X)-1]+10)
+    a.set_ylim(Y[len(Y)-1]-10, Y[0]+10)
+    a.set_title(funcao2, fontsize=11)
+    a.plot([x for x in frange(int(X[0])-10, int(X[len(X)-1])+10)], [f2(x) for x in frange(int(X[0])-10, int(X[len(X)-1])+10)], label="Fitted Curve")
+    plt.show()
+
+def mountFuncTeste(a, c, d):
+    return "{}*exp(-{}*x)+{}".format(a, c, d)
+
+def expo(X, Y):
+    x = np.array(X)
+    y = np.array(Y)
+    popt, pcov = curve_fit(func, x, y, p0=(1, 1e-2, 1e-2), maxfev=50000)
+    xx = np.linspace(x[0]-60, len(x)*10+60, 1000)
+    yy = func(xx, *popt)
+    print(mountFuncTeste(*popt))
+    a.set_xlim(x[0]-10, x[len(x)-1]+10)
+    a.set_ylim(y[len(y)-1]-10, y[0]+10)
+    a.set_title(mountFuncTeste(*popt), fontsize=11)
+    f2 = lambda x : eval(mountFuncTeste(*popt))
+    a.plot([x for x in frange(int(x[0])-10, int(x[len(x)-1])+10)], [f2(x) for x in frange(int(x[0])-10, int(x[len(x)-1])+10)], label="Fitted Curve")
+    plt.show()
+
+def animate(i = 1, name = ""):
+    i = 1
+    Board = "B1"
+    if(name == ""):
+        fileName = "temperature_" + Board + "_" + Application.strDate + ".csv"
+    else:
+        fileName = name
+    pullData = open(fileName,"r").read()
+    dataList = pullData.split('\n')
+    Application.tempTotal = []
+    Application.yTotal = []
+    a.clear()
+    for line in dataList:
+        if line:
+            lines = line.strip().split(';')
+            try:
+                lines = list(map(float, lines[1:]))
+                Application.tempTotal.append(sum(lines)/len(lines))
+                Application.yTotal.append(i*globInter)
+            except Exception as e:
+                pass
+
+            i += 1
+    Application.t = i
+    a.set_xlabel('Time')
+    a.set_ylabel('Temperature (C)')
+    a.plot(Application.yTotal, Application.tempTotal, 'ro')
+    plt.show()
+    if(Application.t > 8):
+        expo(Application.yTotal, Application.tempTotal)
+
 
 root = tk.Tk()
 app = Application(master=root)
