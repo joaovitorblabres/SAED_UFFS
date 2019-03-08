@@ -109,10 +109,13 @@ def expo(X, Y):
     a.plot([x for x in frange(int(x[0])-10, int(x[len(x)-1])+10)], [f2(x) for x in frange(int(x[0])-10, int(x[len(x)-1])+10)], label="Fitted Curve")
     plt.show()
 
-def animate(i = 1):
+def animate(i = 1, name = ""):
     i = 1
     Board = "B1"
-    fileName = "temperature_" + Board + "_" + Application.strDate + ".csv"
+    if(name == ""):
+        fileName = "temperature_" + Board + "_" + Application.strDate + ".csv"
+    else:
+        fileName = name
     pullData = open(fileName,"r").read()
     dataList = pullData.split('\n')
     Application.tempTotal = []
@@ -122,7 +125,7 @@ def animate(i = 1):
         if line:
             lines = line.strip().split(';')
             try:
-                lines = list(map(float, lines))
+                lines = list(map(float, lines[1:]))
                 Application.tempTotal.append(sum(lines)/Application.sensor)
                 Application.yTotal.append(i*globInter)
             except Exception as e:
@@ -174,7 +177,9 @@ class Application(tk.Frame):
         self.create_widgets()
 
     def receive():
-        while(1):.
+        if(ser.isOpen() == False):
+            ser.open()
+        while(1):
             reading = ser.readline()
             leng = len(reading)
             saida = ''
@@ -214,6 +219,9 @@ class Application(tk.Frame):
         self.image = Image.open("files/exit.png")
         self.image = self.image.resize((32, 32), Image.ANTIALIAS)
         self.exitPng = ImageTk.PhotoImage(self.image)
+        self.image = Image.open("files/upload.png")
+        self.image = self.image.resize((32, 32), Image.ANTIALIAS)
+        self.uplPng = ImageTk.PhotoImage(self.image)
 
         self.confs = tk.Button(self, command=self.configuracoes)
         self.confs.config(image=self.confPng)
@@ -225,10 +233,21 @@ class Application(tk.Frame):
         self.quit.pack(anchor=NE, side="right")
         self.confs.pack(anchor=NE, side="right")
 
+        self.upload = tk.Button(self, command=self.importFile)
+        self.upload.config(image=self.uplPng)
+        self.upload.image = self.uplPng
+        self.upload.pack(anchor=NE, side="right")
+
         self.getTemperature = tk.Button(self, font = "Verdana 10 bold")
         self.getTemperature["text"] = "Adquirir temperatura"
         self.getTemperature["command"] = self.getTemp
         self.getTemperature.pack(side="bottom", ipadx=10, ipady=5)
+
+    def importFile(self):
+        pack = filedialog.askopenfilename(initialdir = self.filesPath)
+        print(pack)
+        if(pack != "()"):
+            animate(1, pack)
 
     def configuracoes(self):
         x = self.winfo_x()
@@ -307,6 +326,13 @@ class Application(tk.Frame):
         except ValueError:
             tkMessageBox.showwarning("Tipo invalido", "As quantidades devem ser numeros inteiros", parent = self.toplevel)
 
+    def getFile(self, fileName):
+        with open(fileName, 'r') as csvfile:
+            spamreader = csv.reader(csvfile, delimiter=';', quotechar='|')
+            for row in reversed(spamreader):
+                med = row.rstrip('\n').rstrip('=').split(';')
+        return med
+
     def temps(self):
         ABOUT_TEXT = "ADQUIRINDO TEMPERATURA DOS SENSORES"
         toplevel = tk.Toplevel(master=self.master)
@@ -314,13 +340,9 @@ class Application(tk.Frame):
         self.label1.pack()
         for kl in range(1, self.boards+1):
             x = "B" + str(kl) + "|" + "\n"
-            Board = "B" + str(kl) + "|"
-
+            Board = "B" + str(kl)
             fileName = "temperature_" + Board + "_" + self.strDate + ".csv"
-            with open(fileName, 'r') as csvfile:
-                spamreader = csv.reader(csvfile, delimiter=';', quotechar='|')
-                for row in reversed(spamreader):
-                    med = row.rstrip('\n').rstrip('=').split(';')
+            med = self.getFile(fileName)
             media = map(float, med[2:])
             result = 0
             sens = []
