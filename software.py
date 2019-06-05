@@ -51,7 +51,7 @@ def receive():
             print("Erro de leitura, confira a conexão")
             time.sleep(2)
         leng = len(reading)
-        if(reading[0] == ":" and leng > 6*4+1 and reading[leng-1] == "|"):
+        if(reading[0] == ":" and leng >= 6*4+1 and reading[leng-1] == "|"):
             try:
                 readed2str = bytearray(reading)
                 #reading.replace('\xad', '')
@@ -60,17 +60,18 @@ def receive():
                 except:
                     del readed2str[0]
                 for i in range(1, leng, 4):
+                    saida += readed2str.decode()[i]
+                    saida += readed2str.decode()[i+1]
                     saida += readed2str.decode()[i+2]
                     saida += readed2str.decode()[i+3]
                 readed = codecs.decode(saida, "hex")
-                readed = readed.decode("utf-8").split("=")
-                readed[1] += '0'
+                readed = readed.decode("utf-8")
                 complete = []
                 fileName = "temperature_" + readed[0] + "_" + Application.strDate + ".csv"
                 media = 0
                 tSensores = 6
-                for i in range(0, tSensores):
-                    val = float(readed[1].split(';')[i]) - 11
+                for i in range(0, tSensores): # -0 a +100
+                    val = float(readed[1].split(';')[i])*100/1024 
                     complete.append(val)
                     media += val
                 media /= tSensores
