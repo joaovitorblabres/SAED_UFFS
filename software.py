@@ -22,14 +22,14 @@ from matplotlib.figure import Figure
 from PIL import ImageTk, Image
 from datetime import datetime
 from multiprocessing import Process
-
+'''
 ser3 = serial.Serial(
-    port='/dev/serial0',
+    port='/dev/ttyUSB0',
     baudrate=9600,
     parity=serial.PARITY_NONE,
     stopbits=serial.STOPBITS_TWO,
     bytesize=serial.EIGHTBITS
-)
+)'''
 # ser.isOpen()
 ## TESTES COM VIRTUALIZACAO
 #ser2 = serial.Serial(
@@ -39,6 +39,70 @@ ser3 = serial.Serial(
 #    stopbits=serial.STOPBITS_TWO,
 #    bytesize=serial.EIGHTBITS
 #)
+def receive():
+    while(1):
+        leng = 0
+        reading = ' '
+        try:
+            ser3.flushInput()
+            reading = ser3.readline()
+            saida = ''
+        except:
+            print("Erro de leitura, confira a conexão")
+            time.sleep(2)
+        leng = len(reading)
+        if(reading[0] == ":" and leng > 6*4+1 and reading[leng-1] == "|"):
+            try:
+                readed2str = bytearray(reading)
+                #reading.replace('\xad', '')
+                try:
+                    readed2str[:1].decode()
+                except:
+                    del readed2str[0]
+                for i in range(1, leng, 4):
+                    saida += readed2str.decode()[i+2]
+                    saida += readed2str.decode()[i+3]
+                readed = codecs.decode(saida, "hex")
+                readed = readed.decode("utf-8").split("=")
+                readed[1] += '0'
+                complete = []
+                fileName = "temperature_" + readed[0] + "_" + Application.strDate + ".csv"
+                media = 0
+                tSensores = 6
+                for i in range(0, tSensores):
+                    val = float(readed[1].split(';')[i]) - 11
+                    complete.append(val)
+                    media += val
+                media /= tSensores
+                j = 1
+                print(complete)
+                for b in complete:
+                    if((b < (media - 25)) or (b > (media + 25))):
+                        tkMessageBox.showerror("Atencao", "Sensor " + str(j) +" esta com um diferenca grande de temperatura em relacao aos demais")
+                    elif((b < (media - 10)) or (b > (media + 10))):
+                        tkMessageBox.showwarning("Atencao","Sensor " + str(j) +" esta com um diferenca pequena de temperatura em relacao aos demais")
+                    j += 1
+                with open(fileName, 'a') as csvfile:
+                    spamwriter = csv.writer(csvfile, delimiter=';', quoting=csv.QUOTE_MINIMAL)
+                    spamwriter.writerow(complete[:Application.sensor])
+                    csvfile.close()
+                time.sleep(1)
+            except:
+                print("Erro de conversão, aguarde a próxima tentativa")
+        else:
+            print("Erro na recebimento")
+        try:
+            ser3.close()
+            time.sleep(2)
+            ser3.open()
+        except:
+            print("Problema no serial, reiniciando")
+            try:
+                ser3.open()
+            except:
+                pass
+
+tempera = threading.Thread(target=receive, daemon=True)
 
 class Application(tk.Frame):
     tempTotal = []
@@ -76,82 +140,18 @@ class Application(tk.Frame):
         self.pack()
         self.create_widgets()
 
-    def receive():
-        while(1):
-            leng = 0
-            try:
-                ser3.flushInput()
-                reading = ser3.readline()
-                leng = len(reading)
-                saida = ''
-            except:
-                print("Erro de leitura, confira a conexão")
-                time.sleep(2)
-            if(leng > 8*4*5):
-                try:
-                    readed2str = bytearray(reading)
-                    #reading.replace('\xad', '')
-                    try:
-                        readed2str[:1].decode()
-                    except:
-                        del readed2str[0]
-                    for i in range(0, leng-6, 4):
-                        saida += readed2str.decode()[i+2]
-                        saida += readed2str.decode()[i+3]
-                    readed = codecs.decode(saida, "hex")
-                    readed = readed.decode("utf-8").split("=")
-                    readed[1] += '0'
-                    complete = []
-                    fileName = "temperature_" + readed[0] + "_" + Application.strDate + ".csv"
-                    media = 0
-                    tSensores = Application.sensor
-                    for i in range(0, tSensores):
-                        val = float(readed[1].split(';')[i]) - 11
-                        complete.append(val)
-                        media += val
-                    media /= tSensores
-                    j = 1
-                    print(complete[:Application.sensor])
-                    for b in complete:
-                        if((b < (media - 10)) or (b > (media + 10))):
-                            tkMessageBox.showerror("Atencao", "Sensor " + str(j) +" esta com um diferenca grande de temperatura em relacao aos demais")
-                        elif((b < (media - 5)) or (b > (media + 5))):
-                            tkMessageBox.showwarning("Atencao","Sensor " + str(j) +" esta com um diferenca pequena de temperatura em relacao aos demais")
-                        j += 1
-                    with open(fileName, 'a') as csvfile:
-                        spamwriter = csv.writer(csvfile, delimiter=';', quoting=csv.QUOTE_MINIMAL)
-                        spamwriter.writerow(complete[:Application.sensor])
-                        csvfile.close()
-                    time.sleep(Application.intervalo-2)                    
-                except:
-                    print("Erro de conversão, aguarde a próxima tentativa")
-                
-            try:
-                ser3.close()
-                time.sleep(2)
-                ser3.open()
-            except:
-                print("Problema no serial, reiniciando")
-                try:
-                    ser3.open()
-                except:
-                    pass
-    tempera = threading.Thread(target=receive, daemon=True)
-
     def confs(self):
         self.master.title("Software SAED")
         self.master.maxsize(1000, 600)
         self.master.minsize(1000, 600)
 
     def create_widgets(self):
-        self.tempera.start()
+        global tempera
+        tempera.start()
         self.canvas = FigureCanvasTkAgg(f, self)
         self.canvas.draw()
         self.canvas.get_tk_widget().pack(side=tk.BOTTOM, anchor = S, fill=tk.BOTH)
 
-        # USAR FRAME
-#        self.toolbar = NavigationToolbar2QT(self.canvas, self)
-#        self.toolbar.update()
         self.canvas._tkcanvas.pack(side=tk.BOTTOM, fill=tk.BOTH, expand=True)
 
         self.image = Image.open("files/conf.png")
@@ -178,11 +178,6 @@ class Application(tk.Frame):
         self.upload.config(image=self.uplPng)
         self.upload.image = self.uplPng
         self.upload.pack(anchor=NE, side="right")
-
-        #self.getTemperature = tk.Button(self, font = "Verdana 10 bold")
-        #self.getTemperature["text"] = "Adquirir temperatura"
-        #self.getTemperature["command"] = self.getTemp
-        #self.getTemperature.pack(side="bottom", ipadx=10, ipady=5)
 
     def importFile(self):
         pack = filedialog.askopenfilename(initialdir = self.filesPath)
@@ -221,28 +216,12 @@ class Application(tk.Frame):
         self.interv.insert(0, self.intervalo)
         self.interv.pack(expand=1, pady=2)
 
-        #self.lbQtd = tk.Label(self.toplevel, text = "Quantidade de leituras a serem realizadas:")
-        #self.lbQtd.pack(expand=1, pady=2)
-        #self.leituras = tk.Entry(self.toplevel, text = self.qtdLeituras)
-        #self.leituras.delete(0, END)
-        #self.leituras.insert(0, self.qtdLeituras)
-        #self.leituras.pack(expand=1, pady=2)
-
         self.lbPath = tk.Label(self.toplevel, text = "Local para salvar os dados:")
         self.lbPath.pack(expand=1, pady=2)
         self.paths = tk.Label(self.toplevel, text = self.filesPath)
         self.paths.pack(expand=1, pady=2)
         self.pathB = tk.Button(self.toplevel, text = "Selecionar", command=self.changePath)
         self.pathB.pack(expand=1, pady=2)
-
-       # self.lbTemp = tk.Label(self.toplevel, text = "Tipo de graus:")
-        #self.lbTemp.pack(expand=1, pady=2)
-        #self.tempType = tk.Radiobutton(self.toplevel, text="Celsius", variable=self.typeTemp, value="0")
-        #self.tempType.pack(expand=1, pady=2)
-        #self.tempType = tk.Radiobutton(self.toplevel, text="Fahrenheit", variable=self.typeTemp, value="1")
-        #self.tempType.pack(expand=1, pady=2)
-
-        #Fahrenheit = 9.0/5.0 * Celsius + 32
 
         self.getTemperature = tk.Button(self.toplevel, text="Confirmar", font = "Verdana 10 bold", command=self.saveConfs)
         self.getTemperature.pack()
@@ -273,47 +252,6 @@ class Application(tk.Frame):
             for row in reversed(spamreader):
                 med = row.rstrip('\n').rstrip('=').split(';')
         return med
-
-    #def temps(self):
-    #    ABOUT_TEXT = "ADQUIRINDO TEMPERATURA DOS SENSORES"
-    #    toplevel = tk.Toplevel(master=self.master)
-    #    self.label1 = tk.Label(toplevel, text=ABOUT_TEXT, height=0, width=50)
-    #    self.label1.pack()
-    #    for kl in range(1, self.boards+1):
-    #        x = "B" + str(kl) + "|" + "\n"
-    #        Board = "B" + str(kl)
-    #        fileName = "temperature_" + Board + "_" + self.strDate + ".csv"
-    #        med = self.getFile(fileName)
-    #        media = map(float, med[2:])
-    #        result = 0
-    #        sens = []
-    #        for b in media:
-    #            result += b
-    #            sens.append(b)
-    #        result /= self.sensor
-    #        j = 1
-    #        for b in sens:
-    #            if((b < (result - 10)) or (b > (result + 10))):
-    #                tkMessageBox.showerror("Atencao", "Sensor " + str(j) +" esta com um diferenca grande de temperatura em relacao aos demais")
-    #            elif((b < (result - 3)) or (b > (result + 3))):
-    #                tkMessageBox.showwarning("Atencao","Sensor " + str(j) +" esta com um diferenca pequena de temperatura em relacao aos demais")
-    #            j += 1
-    #    toplevel.destroy()
-
-    #def getTemp(self):
-    #    temp = threading.Thread(target=self.controleLeituras)
-    #    temp.start()
-    #    temp.join(timeout=self.intervalo)
-
-    #def controleLeituras(self):
-    #    i = 0
-    #    while(i < self.qtdLeituras):
-    #        temp = threading.Thread(target=self.temps)
-    #        temp.start()
-    #        temp.join(timeout=self.intervalo)
-    #        time.sleep(self.intervalo)
-    #        i += 1
-    #    return
 
     def chargeConfFile(self):
         global globInter
@@ -413,15 +351,21 @@ def expo(X, Y):
     a.plot([x for x in frange(int(x[0])-10, int(x[len(x)-1])+10)], [f2(x) for x in frange(int(x[0])-10, int(x[len(x)-1])+10)], label="Fitted Curve")
     plt.show()
 
+dataList = []
 def animate(i = 1, name = ""):
     i = 1
-    Board = "B1"
+    global dataList
     if(name == ""):
+        Board = "B1"
         fileName = "temperature_" + Board + "_" + Application.strDate + ".csv"
+        pullData = open(fileName,"r").read()
+        lastData = pullData.split('\n')[-1]
+        dataList += lastData
     else:
         fileName = name
-    pullData = open(fileName,"r").read()
-    dataList = pullData.split('\n')
+        pullData = open(fileName,"r").read()
+        dataList = pullData.split('\n')
+
     Application.tempTotal = []
     Application.yTotal = []
     a.clear()
