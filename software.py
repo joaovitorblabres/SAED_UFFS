@@ -11,8 +11,8 @@ import threading
 import serial, serial.rs485
 from math import *
 from numpy import *
-from tkinter import BOTH, END, LEFT, font, N, NE, NW, W, S
-from tkinter import ttk, filedialog, StringVar
+from tkinter import BOTH, END, LEFT, font, N, NE, NW, W, S, SE, E
+from tkinter import ttk, filedialog, StringVar, IntVar
 from tkinter import messagebox as tkMessageBox
 from numpy.linalg import inv
 from scipy.optimize import curve_fit
@@ -71,7 +71,7 @@ def receive():
                 media = 0
                 tSensores = 6
                 for i in range(0, tSensores): # -0 a +100
-                    val = float(readed[1].split(';')[i])*100/1024 
+                    val = float(readed[1].split(';')[i])*100/1024
                     complete.append(val)
                     media += val
                 media /= tSensores
@@ -143,17 +143,44 @@ class Application(tk.Frame):
 
     def confs(self):
         self.master.title("Software SAED")
-        self.master.maxsize(1000, 600)
-        self.master.minsize(1000, 600)
+        self.master.maxsize(1000, 800)
+        self.master.minsize(1000, 800)
+        self.master.configure(background="#d3d3d3")
+
+    def onClick(self):
+        global pause
+        pause ^= True
+        if not pause:
+            self.play.config(image=self.pausePng)
+            self.play.image = self.pausePng
+        else:
+            self.play.config(image=self.playPng)
+            self.play.image = self.playPng
 
     def create_widgets(self):
+        self.configure(background="#d3d3d3")
+        self.CheckVar0 = IntVar()
+        self.CheckVar0.set(1)
+        self.CheckVar1 = IntVar()
+        self.CheckVar1.set(1)
+        self.CheckVar2 = IntVar()
+        self.CheckVar2.set(1)
+        self.CheckVar3 = IntVar()
+        self.CheckVar3.set(1)
+        self.CheckVar4 = IntVar()
+        self.CheckVar4.set(1)
+        self.CheckVar5 = IntVar()
+        self.CheckVar5.set(1)
         global tempera
-        tempera.start()
+        #tempera.start()
         self.canvas = FigureCanvasTkAgg(f, self)
         self.canvas.draw()
-        self.canvas.get_tk_widget().pack(side=tk.BOTTOM, anchor = S, fill=tk.BOTH)
+        self.canvas.get_tk_widget().grid(row=1, column=0, sticky=W)
 
-        self.canvas._tkcanvas.pack(side=tk.BOTTOM, fill=tk.BOTH, expand=True)
+        #self.canvas._tkcanvas.pack(side=tk.LEFT, expand=True)
+
+        self.lbBoards = tk.Label(self, text = "SAED", font=("default", 20))
+        self.lbBoards.grid(row=0, column=0, sticky=W)
 
         self.image = Image.open("files/conf.png")
         self.image = self.image.resize((32, 32), Image.ANTIALIAS)
@@ -161,24 +188,58 @@ class Application(tk.Frame):
         self.image = Image.open("files/exit.png")
         self.image = self.image.resize((32, 32), Image.ANTIALIAS)
         self.exitPng = ImageTk.PhotoImage(self.image)
+        self.image = Image.open("files/play.png")
+        self.image = self.image.resize((32, 32), Image.ANTIALIAS)
+        self.playPng = ImageTk.PhotoImage(self.image)
+        self.image = Image.open("files/pause.png")
+        self.image = self.image.resize((32, 32), Image.ANTIALIAS)
+        self.pausePng = ImageTk.PhotoImage(self.image)
         self.image = Image.open("files/upload.png")
         self.image = self.image.resize((32, 32), Image.ANTIALIAS)
         self.uplPng = ImageTk.PhotoImage(self.image)
+        #self.image = Image.open("files/logoUFFS.png")
+        self.logoUFFSPng = tk.PhotoImage(file="files/logoUFFS.png")
 
         self.confs = tk.Button(self, command=self.configuracoes)
         self.confs.config(image=self.confPng)
         self.confs.image = self.confPng
-
-        self.quit = tk.Button(self, command=root.destroy)
-        self.quit.config(image=self.exitPng)
-        self.quit.image = self.exitPng
-        self.quit.pack(anchor=NE, side="right")
-        self.confs.pack(anchor=NE, side="right")
+        self.confs.grid(row=0, column=2, sticky=NE)
 
         self.upload = tk.Button(self, command=self.importFile)
         self.upload.config(image=self.uplPng)
         self.upload.image = self.uplPng
-        self.upload.pack(anchor=NE, side="right")
+        self.upload.grid(row=0, column=1, sticky=NE)
+
+        self.quit = tk.Button(self, command=root.destroy)
+        self.quit.config(image=self.exitPng)
+        self.quit.image = self.exitPng
+        self.quit.grid(row=3, column=2, sticky=E)
+
+        self.play = tk.Button(self, command=self.onClick)
+        self.play.config(image=self.playPng)
+        self.play.image = self.playPng
+        self.play.grid(row=3, column=1, sticky=E)
+
+        self.buttons = tk.Frame(self)
+        self.buttons.grid(row=1, column=1, sticky="nsew")
+        self.buttonSensor0 = tk.Checkbutton(self.buttons, text="Sensor 0", variable = self.CheckVar0, onvalue = 1, offvalue = 0, height = 3)
+        self.buttonSensor0.pack(side="top")
+        self.buttonSensor1 = tk.Checkbutton(self.buttons, text="Sensor 1", variable = self.CheckVar1, onvalue = 1, offvalue = 0, height = 3)
+        self.buttonSensor1.pack(side="top")
+        self.buttonSensor2 = tk.Checkbutton(self.buttons, text="Sensor 2", variable = self.CheckVar2, onvalue = 1, offvalue = 0, height = 3)
+        self.buttonSensor2.pack(side="top")
+        self.buttonSensor3 = tk.Checkbutton(self.buttons, text="Sensor 3", variable = self.CheckVar3, onvalue = 1, offvalue = 0, height = 3)
+        self.buttonSensor3.pack(side="top")
+        self.buttonSensor4 = tk.Checkbutton(self.buttons, text="Sensor 4", variable = self.CheckVar4, onvalue = 1, offvalue = 0, height = 3)
+        self.buttonSensor4.pack(side="top")
+        self.buttonSensor5 = tk.Checkbutton(self.buttons, text="Sensor 5", variable = self.CheckVar5, onvalue = 1, offvalue = 0, height = 3)
+        self.buttonSensor5.pack(side="top")
+
+        self.logo = tk.Label(self, image = self.logoUFFSPng, background='#00693e')
+        self.logo.config(image=self.logoUFFSPng)
+        self.logo.image = self.logoUFFSPng
+        self.logo.grid(row=3, column=0, sticky=W)
+
 
     def importFile(self):
         pack = filedialog.askopenfilename(initialdir = self.filesPath)
@@ -283,7 +344,6 @@ class Application(tk.Frame):
         file.write("\n")
         file.close()
 
-
 f = Figure(figsize=(6,4), dpi=100)
 a = f.add_subplot(1, 1, 1)
 pCounter = 0
@@ -298,42 +358,6 @@ def frange(a, b, p = 0.01):
 		l.append(a)
 		a += p
 	return l
-
-def MountFunE(coef):
-	func = ""
-	func += "%f*exp(%f*x)"%(exp(coef[1]), coef[0])
-	return func
-
-def mountFunc(a, c, d):
-    return "{:.4f}*exp({:.4f}*x)+{:.4f}".format(a, c, d)
-
-def ajustePolinomialE(Y, A):
-    lnY = zeros(shape=(len(Y)))
-    for i in range(0, len(Y)):
-        lnY[i] = log(Y[i])
-        At = A.transpose()
-    return dot(inv(dot(At, A)), dot(At, lnY))
-
-def exponencial2(X, Y):
-    global pCounter
-    A = zeros(shape=(len(X), 2))
-    for i in range (0, len(X)):
-        expo = 1;
-        for j in range (0, 2):
-            A[i][j] = X[i]**expo
-            expo -= 1
-
-    function2 = ajustePolinomialE(Y, A)
-    funcao2 = MountFunE(function2)
-    pCounter += 1
-    if((pCounter % 10) == 0):
-        print("Y = %s"%(funcao2))
-    f2 = lambda x : eval(funcao2)
-    a.set_xlim(X[0]-10, X[len(X)-1]+10)
-    a.set_ylim(Y[len(Y)-1]-10, Y[0]+10)
-    a.set_title(funcao2, fontsize=11)
-    a.plot([x for x in frange(int(X[0])-10, int(X[len(X)-1])+10)], [f2(x) for x in frange(int(X[0])-10, int(X[len(X)-1])+10)], label="Fitted Curve")
-    plt.show()
 
 def mountFuncTeste(a, c, d):
     return "{}*exp(-{}*x)+{}".format(a, c, d)
@@ -353,41 +377,45 @@ def expo(X, Y):
     plt.show()
 
 dataList = []
+pause = True
+
 def animate(i = 1, name = ""):
-    i = 1
-    global dataList
-    if(name == ""):
-        Board = "B1"
-        fileName = "temperature_" + Board + "_" + Application.strDate + ".csv"
-        pullData = open(fileName,"r").read()
-        lastData = pullData.split('\n')[-1]
-        dataList += lastData
-    else:
-        fileName = name
-        pullData = open(fileName,"r").read()
-        dataList = pullData.split('\n')
+	i = 1
+	global pause
+	if not pause:
+	    global dataList
+	    if(name == ""):
+	        Board = "B1"
+	        fileName = "temperature_" + Board + "_" + Application.strDate + ".csv"
+	        pullData = open(fileName,"r").read()
+	        lastData = pullData.split('\n')[-1]
+	        dataList += lastData
+	    else:
+	        fileName = name
+	        pullData = open(fileName,"r").read()
+	        dataList = pullData.split('\n')
 
-    Application.tempTotal = []
-    Application.yTotal = []
-    a.clear()
-    for line in dataList:
-        if line:
-            lines = line.strip().split(';')
-            try:
-                lines = list(map(float, lines[1:]))
-                Application.tempTotal.append(sum(lines)/len(lines))
-                Application.yTotal.append(i*globInter)
-            except Exception as e:
-                pass
+	    Application.tempTotal = []
+	    Application.yTotal = []
+	    a.clear()
+	    for line in dataList:
+	        if line:
+	            lines = line.strip().split(';')
+	            try:
+	                lines = list(map(float, lines[1:]))
+	                Application.tempTotal.append(sum(lines)/len(lines))
+	                Application.yTotal.append(i*globInter)
+	            except Exception as e:
+	                pass
 
-            i += 1
-    Application.t = i
-    a.set_xlabel('Time')
-    a.set_ylabel('Temperature (C)')
-    a.plot(Application.yTotal, Application.tempTotal, 'ro')
-    plt.show()
-    if(Application.t > 8):
-        expo(Application.yTotal, Application.tempTotal)
+	            i += 1
+	    Application.t = i
+	    a.set_xlabel('Time')
+	    a.set_ylabel('Temperature (C)')
+	    a.plot(Application.yTotal, Application.tempTotal, 'ro')
+	    plt.show()
+	    if(Application.t > 8):
+	        expo(Application.yTotal, Application.tempTotal)
 
 
 root = tk.Tk()
