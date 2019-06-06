@@ -11,6 +11,10 @@ import threading
 import serial, serial.rs485
 from math import *
 from numpy import *
+try:
+    from Tkinter import *
+except ImportError:
+    from tkinter import *
 from tkinter import BOTH, END, LEFT, font, N, NE, NW, W, S, SE, E
 from tkinter import ttk, filedialog, StringVar, IntVar
 from tkinter import messagebox as tkMessageBox
@@ -175,7 +179,7 @@ class Application(tk.Frame):
         #tempera.start()
         self.canvas = FigureCanvasTkAgg(f, self)
         self.canvas.draw()
-        self.canvas.get_tk_widget().grid(row=1, column=0, sticky=W)
+        self.canvas.get_tk_widget().grid(row=1, column=0, sticky=W, pady=5, padx=5)
 
         #self.canvas._tkcanvas.pack(side=tk.LEFT, expand=True)
 
@@ -235,10 +239,29 @@ class Application(tk.Frame):
         self.buttonSensor5 = tk.Checkbutton(self.buttons, text="Sensor 5", variable = self.CheckVar5, onvalue = 1, offvalue = 0, height = 3)
         self.buttonSensor5.pack(side="top")
 
-        self.logo = tk.Label(self, image = self.logoUFFSPng, background='#00693e')
+        self.logo = tk.Label(self, image = self.logoUFFSPng) #, background='#00693e'
         self.logo.config(image=self.logoUFFSPng)
         self.logo.image = self.logoUFFSPng
         self.logo.grid(row=3, column=0, sticky=W)
+
+        self.mlb = MultiListbox(self, (('DATA_HORA', 20), ('Sensor 0', 8), ('Sensor 1', 8), ('Sensor 2', 8), ('Sensor 3', 8), ('Sensor 4', 8), ('Sensor 5', 8)))
+        self.mlb.insert(END, ('%02d/%02d/%04d_%02d:%02d:%02d' % (6,6,2019,11,11,30) , 39.5508, 41.5039, 41.5039, 41.9922, 43.9453, 41.5039))
+        self.mlb.insert(END, ('%02d/%02d/%04d_%02d:%02d:%02d' % (6,6,2019,11,11,31) , 39.5508, 41.5039, 41.5039, 41.9922, 43.9453, 41.5039))
+        self.mlb.insert(END, ('%02d/%02d/%04d_%02d:%02d:%02d' % (6,6,2019,11,11,32) , 39.5508, 41.5039, 41.5039, 41.9922, 43.9453, 41.5039))
+        self.mlb.insert(END, ('%02d/%02d/%04d_%02d:%02d:%02d' % (6,6,2019,11,11,33) , 39.5508, 41.5039, 41.5039, 41.9922, 43.9453, 41.5039))
+        self.mlb.insert(END, ('%02d/%02d/%04d_%02d:%02d:%02d' % (6,6,2019,11,11,34) , 39.5508, 41.5039, 41.5039, 41.9922, 43.9453, 41.5039))
+        self.mlb.insert(END, ('%02d/%02d/%04d_%02d:%02d:%02d' % (6,6,2019,11,11,35) , 39.5508, 41.5039, 41.5039, 41.9922, 43.9453, 41.5039))
+        self.mlb.insert(END, ('%02d/%02d/%04d_%02d:%02d:%02d' % (6,6,2019,11,11,36) , 39.5508, 41.5039, 41.5039, 41.9922, 43.9453, 41.5039))
+        self.mlb.insert(END, ('%02d/%02d/%04d_%02d:%02d:%02d' % (6,6,2019,11,11,37) , 39.5508, 41.5039, 41.5039, 41.9922, 43.9453, 41.5039))
+        self.mlb.insert(END, ('%02d/%02d/%04d_%02d:%02d:%02d' % (6,6,2019,11,11,38) , 39.5508, 41.5039, 41.5039, 41.9922, 43.9453, 41.5039))
+        self.mlb.insert(END, ('%02d/%02d/%04d_%02d:%02d:%02d' % (6,6,2019,11,11,39) , 39.5508, 41.5039, 41.5039, 41.9922, 43.9453, 41.5039))
+        self.mlb.insert(END, ('%02d/%02d/%04d_%02d:%02d:%02d' % (6,6,2019,11,11,40) , 39.5508, 41.5039, 41.5039, 41.9922, 43.9453, 41.5039))
+        self.mlb.insert(END, ('%02d/%02d/%04d_%02d:%02d:%02d' % (6,6,2019,11,11,41) , 39.5508, 41.5039, 41.5039, 41.9922, 43.9453, 41.5039))
+        self.mlb.insert(END, ('%02d/%02d/%04d_%02d:%02d:%02d' % (6,6,2019,11,11,42) , 39.5508, 41.5039, 41.5039, 41.9922, 43.9453, 41.5039))
+        self.mlb.insert(END, ('%02d/%02d/%04d_%02d:%02d:%02d' % (6,6,2019,11,11,43) , 39.5508, 41.5039, 41.5039, 41.9922, 43.9453, 41.5039))
+        self.mlb.insert(END, ('%02d/%02d/%04d_%02d:%02d:%02d' % (6,6,2019,11,11,44) , 39.5508, 41.5039, 41.5039, 41.9922, 43.9453, 41.5039))
+        self.mlb.insert(END, ('%02d/%02d/%04d_%02d:%02d:%02d' % (6,6,2019,11,11,45) , 39.5508, 41.5039, 41.5039, 41.9922, 43.9453, 41.5039))
+        self.mlb.grid(row=2, column=0, pady=5)
 
 
     def importFile(self):
@@ -302,7 +325,7 @@ class Application(tk.Frame):
             self.boards = int(self.Boards.get())
             self.sensor = int(self.sensors.get())
             self.intervalo = int(self.interv.get())
-            self.qtdLeituras = int(self.leituras.get())
+            #.qtdLeituras = int(self.leituras.get())
             tkMessageBox.showinfo("Salvo", "Salvo com sucesso", parent = self.toplevel)
             self.toplevel.destroy()
         except ValueError:
@@ -344,7 +367,93 @@ class Application(tk.Frame):
         file.write("\n")
         file.close()
 
-f = Figure(figsize=(6,4), dpi=100)
+class MultiListbox(Frame):
+    def __init__(self, master, lists):
+        Frame.__init__(self, master)
+        self.lists = []
+        for l,w in lists:
+            frame = Frame(self); frame.pack(side=LEFT, expand=YES, fill=BOTH)
+            Label(frame, text=l, borderwidth=1, relief=RAISED).pack(fill=X)
+            lb = Listbox(frame, width=w, borderwidth=0, selectborderwidth=0,
+                         relief=FLAT, exportselection=FALSE)
+            lb.pack(expand=YES, fill=BOTH)
+            self.lists.append(lb)
+            lb.bind('<B1-Motion>', lambda e, s=self: s._select(e.y))
+            lb.bind('<Button-1>', lambda e, s=self: s._select(e.y))
+            lb.bind('<Leave>', lambda e: 'break')
+            lb.bind('<B2-Motion>', lambda e, s=self: s._b2motion(e.x, e.y))
+            lb.bind('<Button-2>', lambda e, s=self: s._button2(e.x, e.y))
+        frame = Frame(self); frame.pack(side=LEFT, fill=Y)
+        Label(frame, borderwidth=1, relief=RAISED).pack(fill=X)
+        sb = Scrollbar(frame, orient=VERTICAL, command=self._scroll)
+        sb.pack(expand=YES, fill=Y)
+        self.lists[0]['yscrollcommand']=sb.set
+
+    def _select(self, y):
+        row = self.lists[0].nearest(y)
+        self.selection_clear(0, END)
+        self.selection_set(row)
+        return 'break'
+
+    def _button2(self, x, y):
+        for l in self.lists: l.scan_mark(x, y)
+        return 'break'
+
+    def _b2motion(self, x, y):
+        for l in self.lists: l.scan_dragto(x, y)
+        return 'break'
+
+    def _scroll(self, *args):
+        for l in self.lists:
+            l.yview(*(args))
+
+    def curselection(self):
+        return self.lists[0].curselection(  )
+
+    def delete(self, first, last=None):
+        for l in self.lists:
+            l.delete(first, last)
+
+    def get(self, first, last=None):
+        result = []
+        for l in self.lists:
+            result.append(l.get(first,last))
+        if last: return map(*([None] + result))
+        return result
+
+    def index(self, index):
+        self.lists[0].index(index)
+
+    def insert(self, index, *elements):
+        for e in elements:
+            i = 0
+            for l in self.lists:
+                l.insert(index, e[i])
+                i = i + 1
+
+    def size(self):
+        return self.lists[0].size(  )
+
+    def see(self, index):
+        for l in self.lists:
+            l.see(index)
+
+    def selection_anchor(self, index):
+        for l in self.lists:
+            l.selection_anchor(index)
+
+    def selection_clear(self, first, last=None):
+        for l in self.lists:
+            l.selection_clear(first, last)
+
+    def selection_includes(self, index):
+        return self.lists[0].selection_includes(index)
+
+    def selection_set(self, first, last=None):
+        for l in self.lists:
+            l.selection_set(first, last)
+
+f = Figure(figsize=(6,3.5), dpi=100)
 a = f.add_subplot(1, 1, 1)
 pCounter = 0
 globInter = 0
