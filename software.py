@@ -1,4 +1,4 @@
-import copy
+import copy, os, sys
 import csv
 import numpy as np
 import time
@@ -26,6 +26,8 @@ from matplotlib.figure import Figure
 from PIL import ImageTk, Image
 from datetime import datetime
 from multiprocessing import Process
+from MultiListbox import *
+from subprocess import Popen, PIPE
 '''
 ser3 = serial.Serial(
     port='/dev/ttyUSB0',
@@ -163,18 +165,10 @@ class Application(tk.Frame):
 
     def create_widgets(self):
         self.configure(background="#d3d3d3")
-        self.CheckVar0 = IntVar()
-        self.CheckVar0.set(1)
-        self.CheckVar1 = IntVar()
-        self.CheckVar1.set(1)
-        self.CheckVar2 = IntVar()
-        self.CheckVar2.set(1)
-        self.CheckVar3 = IntVar()
-        self.CheckVar3.set(1)
-        self.CheckVar4 = IntVar()
-        self.CheckVar4.set(1)
-        self.CheckVar5 = IntVar()
-        self.CheckVar5.set(1)
+        self.CheckVars = []
+        for i in range(self.sensor):
+            self.CheckVars.append(IntVar())
+            self.CheckVars[i].set(1)
         global tempera
         #tempera.start()
         self.canvas = FigureCanvasTkAgg(f, self)
@@ -226,18 +220,10 @@ class Application(tk.Frame):
 
         self.buttons = tk.Frame(self)
         self.buttons.grid(row=1, column=1, sticky="nsew")
-        self.buttonSensor0 = tk.Checkbutton(self.buttons, text="Sensor 0", variable = self.CheckVar0, onvalue = 1, offvalue = 0, height = 3)
-        self.buttonSensor0.pack(side="top")
-        self.buttonSensor1 = tk.Checkbutton(self.buttons, text="Sensor 1", variable = self.CheckVar1, onvalue = 1, offvalue = 0, height = 3)
-        self.buttonSensor1.pack(side="top")
-        self.buttonSensor2 = tk.Checkbutton(self.buttons, text="Sensor 2", variable = self.CheckVar2, onvalue = 1, offvalue = 0, height = 3)
-        self.buttonSensor2.pack(side="top")
-        self.buttonSensor3 = tk.Checkbutton(self.buttons, text="Sensor 3", variable = self.CheckVar3, onvalue = 1, offvalue = 0, height = 3)
-        self.buttonSensor3.pack(side="top")
-        self.buttonSensor4 = tk.Checkbutton(self.buttons, text="Sensor 4", variable = self.CheckVar4, onvalue = 1, offvalue = 0, height = 3)
-        self.buttonSensor4.pack(side="top")
-        self.buttonSensor5 = tk.Checkbutton(self.buttons, text="Sensor 5", variable = self.CheckVar5, onvalue = 1, offvalue = 0, height = 3)
-        self.buttonSensor5.pack(side="top")
+        self.buttonSensors = []
+        for i in range(self.sensor):
+            self.buttonSensors.append(tk.Checkbutton(self.buttons, text="Sensor "+str(i), variable = self.CheckVars[i], onvalue = 1, offvalue = 0, height = 3))
+            self.buttonSensors[i].pack(side="top")
 
         self.logo = tk.Label(self, image = self.logoUFFSPng) #, background='#00693e'
         self.logo.config(image=self.logoUFFSPng)
@@ -321,11 +307,16 @@ class Application(tk.Frame):
         print(self.filesPath)
 
     def saveConfs(self):
+        global ani
         try:
             self.boards = int(self.Boards.get())
-            self.sensor = int(self.sensors.get())
             self.intervalo = int(self.interv.get())
-            #.qtdLeituras = int(self.leituras.get())
+            ani.event_source.interval = self.intervalo*1000
+            if(self.sensor != int(self.sensors.get())):
+                    tkMessageBox.showinfo("Reiniciar", "Será necessário reiniciar a aplicação", parent = self.toplevel)
+                    self.sensor = int(self.sensors.get())
+                    self.saveConfFile()
+                    restart_program()
             tkMessageBox.showinfo("Salvo", "Salvo com sucesso", parent = self.toplevel)
             self.toplevel.destroy()
         except ValueError:
@@ -367,96 +358,14 @@ class Application(tk.Frame):
         file.write("\n")
         file.close()
 
-class MultiListbox(Frame):
-    def __init__(self, master, lists):
-        Frame.__init__(self, master)
-        self.lists = []
-        for l,w in lists:
-            frame = Frame(self); frame.pack(side=LEFT, expand=YES, fill=BOTH)
-            Label(frame, text=l, borderwidth=1, relief=RAISED).pack(fill=X)
-            lb = Listbox(frame, width=w, borderwidth=0, selectborderwidth=0,
-                         relief=FLAT, exportselection=FALSE)
-            lb.pack(expand=YES, fill=BOTH)
-            self.lists.append(lb)
-            lb.bind('<B1-Motion>', lambda e, s=self: s._select(e.y))
-            lb.bind('<Button-1>', lambda e, s=self: s._select(e.y))
-            lb.bind('<Leave>', lambda e: 'break')
-            lb.bind('<B2-Motion>', lambda e, s=self: s._b2motion(e.x, e.y))
-            lb.bind('<Button-2>', lambda e, s=self: s._button2(e.x, e.y))
-        frame = Frame(self); frame.pack(side=LEFT, fill=Y)
-        Label(frame, borderwidth=1, relief=RAISED).pack(fill=X)
-        sb = Scrollbar(frame, orient=VERTICAL, command=self._scroll)
-        sb.pack(expand=YES, fill=Y)
-        self.lists[0]['yscrollcommand']=sb.set
-
-    def _select(self, y):
-        row = self.lists[0].nearest(y)
-        self.selection_clear(0, END)
-        self.selection_set(row)
-        return 'break'
-
-    def _button2(self, x, y):
-        for l in self.lists: l.scan_mark(x, y)
-        return 'break'
-
-    def _b2motion(self, x, y):
-        for l in self.lists: l.scan_dragto(x, y)
-        return 'break'
-
-    def _scroll(self, *args):
-        for l in self.lists:
-            l.yview(*(args))
-
-    def curselection(self):
-        return self.lists[0].curselection(  )
-
-    def delete(self, first, last=None):
-        for l in self.lists:
-            l.delete(first, last)
-
-    def get(self, first, last=None):
-        result = []
-        for l in self.lists:
-            result.append(l.get(first,last))
-        if last: return map(*([None] + result))
-        return result
-
-    def index(self, index):
-        self.lists[0].index(index)
-
-    def insert(self, index, *elements):
-        for e in elements:
-            i = 0
-            for l in self.lists:
-                l.insert(index, e[i])
-                i = i + 1
-
-    def size(self):
-        return self.lists[0].size(  )
-
-    def see(self, index):
-        for l in self.lists:
-            l.see(index)
-
-    def selection_anchor(self, index):
-        for l in self.lists:
-            l.selection_anchor(index)
-
-    def selection_clear(self, first, last=None):
-        for l in self.lists:
-            l.selection_clear(first, last)
-
-    def selection_includes(self, index):
-        return self.lists[0].selection_includes(index)
-
-    def selection_set(self, first, last=None):
-        for l in self.lists:
-            l.selection_set(first, last)
-
 f = Figure(figsize=(6,3.5), dpi=100)
 a = f.add_subplot(1, 1, 1)
 pCounter = 0
 globInter = 0
+
+def restart_program():
+    python = sys.executable
+    os.execl(python, python, * sys.argv)
 
 def func(x, a, c, d):
     return a*np.exp(-c*x)+d
@@ -488,10 +397,14 @@ def expo(X, Y):
 dataList = []
 pause = True
 
+def get_time():
+	return time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(int(time.time())))
+
 def animate(i = 1, name = ""):
 	i = 1
 	global pause
 	if not pause:
+	    print("[" + get_time() + "] CHECK")
 	    global dataList
 	    if(name == ""):
 	        Board = "B1"
@@ -523,11 +436,16 @@ def animate(i = 1, name = ""):
 	    a.set_ylabel('Temperature (C)')
 	    a.plot(Application.yTotal, Application.tempTotal, 'ro')
 	    plt.show()
-	    if(Application.t > 8):
+	    if(Application.t > 2):
 	        expo(Application.yTotal, Application.tempTotal)
 
 
 root = tk.Tk()
+p0 = Popen(['make', 'update'], stdin=PIPE, stdout=PIPE, stderr=PIPE)
+output0, er0 = p0.communicate(b"")
+if output0.decode() != "git pull\nAlready up to date.\n" and output0.decode() != "git pull\n":
+    tkMessageBox.showinfo("Reiniciar", "Atualização encontrada!\nSerá necessário reiniciar a aplicação!", parent = root)
+    restart_program()
 app = Application(master=root)
 ani = animation.FuncAnimation(f, animate, interval=Application.intervalo*1000)
 app.mainloop()
