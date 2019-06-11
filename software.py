@@ -445,6 +445,8 @@ imported = 0
 root = tk.Tk()
 p0 = Popen(['make', 'update'], stdin=PIPE, stdout=PIPE, stderr=PIPE)
 output0, er0 = p0.communicate(b"")
+if er0.decode() != "":
+	tkMessageBox.showinfo("Aviso", "Não foi possível verificar atualizações!\nVocê pode estar desconectado da internet!\nO programa pode estar sendo executado com uma versão desatualizada!", parent = root)
 if output0.decode() != "git pull\nAlready up to date.\n" and output0.decode() != "git pull\n":
 	tkMessageBox.showinfo("Reiniciar", "Atualização encontrada!\nSerá necessário reiniciar a aplicação!", parent = root)
 	restart_program()
