@@ -1,7 +1,7 @@
 import copy, os, sys
 import csv
 import numpy as np
-import time
+import time, datetime
 import tkinter as tk
 import time, codecs
 import matplotlib.animation as animation
@@ -125,6 +125,7 @@ class Application(tk.Frame):
 	i = 0
 	strDate = ""
 	inputs = []
+	fileImport = ""
 
 	for it in tt:
 		if(i < 4):
@@ -237,13 +238,14 @@ class Application(tk.Frame):
 		self.mlb.grid(row=2, column=0, pady=5)
 
 	def atualizaMultiList(self):
+		self.mlb.delete(0, self.mlb.size())
 		[self.mlb.insert(END, (input[0], input[1], input[2], input[3], input[4], input[5], input[6])) for input in self.inputs]
 
 	def importFile(self):
 		pack = filedialog.askopenfilename(initialdir = self.filesPath)
-		print(pack)
 		if(pack != "()"):
-			animate(1, pack)
+			self.fileImport = pack
+			print(self.fileImport)
 
 	def configuracoes(self):
 		x = self.winfo_x()
@@ -347,7 +349,7 @@ class Application(tk.Frame):
 		file.write("\n")
 		file.close()
 
-f = Figure(figsize=(6,3.5), dpi=100)
+f = Figure(figsize=(6,4), dpi=100)
 a = f.add_subplot(1, 1, 1)
 pCounter = 0
 globInter = 0
@@ -389,53 +391,57 @@ pause = True
 def get_time():
 	return time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(int(time.time())))
 
-def animate(i = 1, name = ""):
-	i = 1
-	global pause
-	if not pause or name != "":
+def plot(dataList, n = 3):
+	global pause, globInter
+	a.clear()
+	for line in dataList:
+		if line:
+			lines = []
+			lines.append(get_time())
+			[lines.append(line[i:i+n].replace(';', '').replace('\n', '').replace(':','').replace('#','')) for i in range(1, len(line), n)]
+			[lines.append(0.0) for i in range(len(lines), 7)]
+			app.inputs.append(lines)
+			app.atualizaMultiList()
+			try:
+				lines = list(map(float, lines[1:-1]))
+				Application.tempTotal.append(sum(lines)/len(lines))
+				Application.yTotal.append(len(app.inputs)*globInter)
+			except Exception as e:
+				print(e)
+
+	Application.t = len(app.inputs)
+	a.set_xlabel('Time')
+	a.set_ylabel('Temperature (C)')
+	a.plot(Application.yTotal, Application.tempTotal, 'ro')
+	plt.show()
+	if(Application.t > 8):
+		expo(Application.yTotal, Application.tempTotal)
+
+def animate(i = 1):
+	global pause, modificationTime
+	global dataList
+	global imported
+	#print(app.fileImport)
+	if not pause and app.fileImport == "":
 		#print("[" + get_time() + "] CHECK")
-		global dataList
-		print(name)
-		if(name == ""):
-			Board = "B1"
-			fileName = "temperature_" + Board + "_" + Application.strDate + ".csv"
+		Board = "B1"
+		fileName = "temperature_" + Board + "_" + Application.strDate + ".csv"
+		lastChange = datetime.fromtimestamp(os.path.getmtime(fileName))
+		if modificationTime != lastChange:
 			pullData = open(fileName,"r").read()
-			lastData = pullData.split('\n')[-1]
-			dataList += lastData
-		else:
-			fileName = name
-			pullData = open(fileName,"r").read()
-			dataList = pullData.split('\n')
+			lastData = pullData.split('\n')[-2]
+			dataList.clear()
+			dataList.append(lastData)
+			modificationTime = lastChange
+			plot(dataList)
+	elif app.fileImport != "" and imported == 0:
+		fileName = app.fileImport
+		pullData = open(fileName,"r").read()
+		dataList = pullData.split('\n')
+		imported = 1
+		plot(dataList, 8)
 
-		Application.tempTotal = []
-		Application.yTotal = []
-		a.clear()
-		for line in dataList:
-			if line:
-				n = 8
-				lines = []
-				lines.append(get_time())
-				[lines.append(line[i:i+n].replace(';', '')) for i in range(0, len(line), n)]
-				[lines.append(0.0) for i in range(len(lines), 7)]
-				Application.inputs.append(lines)
-				app.atualizaMultiList()
-				try:
-					lines = list(map(float, lines[1:]))
-					Application.tempTotal.append(sum(lines)/len(lines))
-					Application.yTotal.append(i*globInter)
-				except Exception as e:
-					print(e)
-
-				i += 1
-		Application.t = i
-		a.set_xlabel('Time')
-		a.set_ylabel('Temperature (C)')
-		a.plot(Application.yTotal, Application.tempTotal, 'ro')
-		plt.show()
-		if(Application.t > 8):
-			expo(Application.yTotal, Application.tempTotal)
-
-
+imported = 0
 root = tk.Tk()
 p0 = Popen(['make', 'update'], stdin=PIPE, stdout=PIPE, stderr=PIPE)
 output0, er0 = p0.communicate(b"")
@@ -443,6 +449,7 @@ if output0.decode() != "git pull\nAlready up to date.\n" and output0.decode() !=
 	tkMessageBox.showinfo("Reiniciar", "Atualização encontrada!\nSerá necessário reiniciar a aplicação!", parent = root)
 	restart_program()
 app = Application(master=root)
-ani = animation.FuncAnimation(f, animate, interval=Application.intervalo*1000)
+modificationTime = datetime.fromtimestamp(os.path.getmtime("temperature_B1_" + app.strDate + ".csv"))
+ani = animation.FuncAnimation(f, animate, interval=app.intervalo*1000)
 app.mainloop()
 app.saveConfFile()
