@@ -224,7 +224,7 @@ class Application(tk.Frame):
 		self.buttons.grid(row=1, column=1, sticky="nsew")
 		self.buttonSensors = []
 		for i in range(self.sensor):
-			self.buttonSensors.append(tk.Checkbutton(self.buttons, text="Sensor "+str(i), variable = self.CheckVars[i], onvalue = 1, offvalue = 0, height = 3))
+			self.buttonSensors.append(tk.Checkbutton(self.buttons, text="Sensor "+str(i), variable = self.CheckVars[i], onvalue = 1, offvalue = 0, height = 3, command=replotSensor))
 			self.buttonSensors[i].pack(side="top")
 
 		self.logo = tk.Label(self, image = self.logoUFFSPng) #, background='#00693e'
@@ -382,17 +382,33 @@ def expo(X, Y):
 	a.set_ylim(y[len(y)-1]-10, y[0]+10)
 	a.set_title(mountFuncTeste(*popt), fontsize=11)
 	f2 = lambda x : eval(mountFuncTeste(*popt))
-	a.plot([x for x in frange(int(x[0])-10, int(x[len(x)-1])+10)], [f2(x) for x in frange(int(x[0])-10, int(x[len(x)-1])+10)], label="Fitted Curve")
+	a.plot([x for x in frange(int(x[0])-10, int(x[len(x)-1])+10)], [f2(x) for x in frange(int(x[0])-10, int(x[len(x)-1])+10)], label="Fitted Curve", color='m')
 	plt.show()
 
 dataList = []
+colorConf = ['ro', 'go', 'bo', 'yo', 'co', 'ko']
 pause = True
 
 def get_time():
 	return time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(int(time.time())))
 
+
+def replotSensor():
+	global colorConf, globInter
+	a.clear()
+	for i in range(0, len(app.inputs)):
+		k = 0
+		for j in range(1, len(app.inputs[i])):
+			if app.CheckVars[k].get() == 1:
+				a.plot(int(i*globInter), float(app.inputs[i][j]), colorConf[j-1])
+			if k < app.sensor-1:
+				k += 1
+	if(Application.t > 8):
+		expo(Application.yTotal, Application.tempTotal)
+	plt.show()
+
 def plot(dataList, n = 3):
-	global pause, globInter
+	global pause, globInter, colorConf
 	a.clear()
 	for line in dataList:
 		if line:
@@ -412,7 +428,8 @@ def plot(dataList, n = 3):
 	Application.t = len(app.inputs)
 	a.set_xlabel('Time')
 	a.set_ylabel('Temperature (C)')
-	a.plot(Application.yTotal, Application.tempTotal, 'ro')
+	replotSensor()
+	#a.plot(Application.yTotal, Application.tempTotal, 'ro')
 	plt.show()
 	if(Application.t > 8):
 		expo(Application.yTotal, Application.tempTotal)
