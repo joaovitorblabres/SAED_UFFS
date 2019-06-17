@@ -243,8 +243,10 @@ class Application(tk.Frame):
 
 	def importFile(self):
 		pack = filedialog.askopenfilename(initialdir = self.filesPath)
-		if(pack != "()"):
-			self.fileImport = pack
+		result = "".join(str(x) for x in pack)
+		result.replace("()", "")
+		if(result != "()" and result != ""):
+			self.fileImport = result
 			print(self.fileImport)
 
 	def configuracoes(self):
@@ -349,7 +351,7 @@ class Application(tk.Frame):
 		file.write("\n")
 		file.close()
 
-f = Figure(figsize=(6,4), dpi=100)
+f = Figure(figsize=(8,5), dpi=100)
 a = f.add_subplot(1, 1, 1)
 pCounter = 0
 globInter = 0
@@ -403,8 +405,8 @@ def replotSensor():
 				a.plot(int(i*globInter), float(app.inputs[i][j]), colorConf[j-1])
 			if k < app.sensor-1:
 				k += 1
-	if(Application.t > 8):
-		expo(Application.yTotal, Application.tempTotal)
+	a.set_xlabel('Tempo (s)')
+	a.set_ylabel('Temperatura (°C)')
 	plt.show()
 
 def plot(dataList, n = 3):
@@ -426,13 +428,11 @@ def plot(dataList, n = 3):
 				print(e)
 
 	Application.t = len(app.inputs)
-	a.set_xlabel('Time')
-	a.set_ylabel('Temperature (C)')
 	replotSensor()
+	#a.set_xlabel('Tempo (s)')
+	#a.set_ylabel('Temperatura (°C)')
 	#a.plot(Application.yTotal, Application.tempTotal, 'ro')
 	plt.show()
-	if(Application.t > 8):
-		expo(Application.yTotal, Application.tempTotal)
 
 def animate(i = 1):
 	global pause, modificationTime
@@ -470,5 +470,7 @@ if output0.decode() != "git pull\nAlready up to date.\n" and output0.decode() !=
 app = Application(master=root)
 modificationTime = datetime.fromtimestamp(os.path.getmtime("temperature_B1_" + app.strDate + ".csv"))
 ani = animation.FuncAnimation(f, animate, interval=app.intervalo*1000)
+a.set_xlabel('Tempo (s)')
+a.set_ylabel('Temperatura (°C)')
 app.mainloop()
 app.saveConfFile()
