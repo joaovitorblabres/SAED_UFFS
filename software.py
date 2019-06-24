@@ -126,6 +126,7 @@ class Application(tk.Frame):
 	strDate = ""
 	inputs = []
 	fileImport = ""
+	fileName = ""
 
 	for it in tt:
 		if(i < 4):
@@ -273,7 +274,7 @@ class Application(tk.Frame):
 		self.sensors.insert(0, self.sensor)
 		self.sensors.pack(expand=1, pady=2)
 
-		self.lbInterval = tk.Label(self.toplevel, text = "Intervalo de aferimento de temperatura (em segundos):")
+		self.lbInterval = tk.Label(self.toplevel, text = "Intervalo de aferimento de temperatura (em segundos - mínimo de 3):")
 		self.lbInterval.pack(expand=1, pady=2)
 		self.interv = tk.Entry(self.toplevel, text = self.intervalo)
 		self.interv.delete(0, END)
@@ -304,6 +305,9 @@ class Application(tk.Frame):
 		try:
 			self.boards = int(self.Boards.get())
 			self.intervalo = int(self.interv.get())
+			if(self.intervalo < 3):
+				tkMessageBox.showinfo("Menor que 3 segundos", "Menor que 3 segundos, iremos colocar 3 segundos, como mínimo", parent = self.toplevel)
+				self.intervalo = 3
 			ani.event_source.interval = self.intervalo*1000
 			if(self.sensor != int(self.sensors.get())):
 					tkMessageBox.showinfo("Reiniciar", "Será necessário reiniciar a aplicação", parent = self.toplevel)
@@ -416,8 +420,17 @@ def plot(dataList, n = 3):
 		if line:
 			lines = []
 			lines.append(get_time())
-			[lines.append(line[i:i+n].replace(';', '').replace('\n', '').replace(':','').replace('#','')) for i in range(1, len(line), n)]
+			#print(line)
+			if n == 1:
+				for i in line:
+					lines.append(int(i)*0.31027)
+			else:
+				[lines.append(line[i:i+n].replace(';', '').replace(',', '').replace('\n', '').replace(':','').replace('#','')) for i in range(1, len(line), n)]
 			[lines.append(0.0) for i in range(len(lines), 7)]
+			with open(app.fileName, 'a') as csvfile:
+					spamwriter = csv.writer(csvfile, delimiter=';', quoting=csv.QUOTE_MINIMAL)
+					spamwriter.writerow(lines)
+					csvfile.close()
 			app.inputs.append(lines)
 			app.atualizaMultiList()
 			try:
@@ -429,9 +442,6 @@ def plot(dataList, n = 3):
 
 	Application.t = len(app.inputs)
 	replotSensor()
-	#a.set_xlabel('Tempo (s)')
-	#a.set_ylabel('Temperatura (°C)')
-	#a.plot(Application.yTotal, Application.tempTotal, 'ro')
 	plt.show()
 
 def animate(i = 1):
@@ -442,15 +452,15 @@ def animate(i = 1):
 	if not pause and app.fileImport == "":
 		#print("[" + get_time() + "] CHECK")
 		Board = "B1"
-		fileName = "temperature_" + Board + "_" + Application.strDate + ".csv"
+		fileName = "/home/pi/monitor_temperatura_UFFS/arquivos/temperatura.csv"
 		lastChange = datetime.fromtimestamp(os.path.getmtime(fileName))
 		if modificationTime != lastChange:
 			pullData = open(fileName,"r").read()
 			lastData = pullData.split('\n')[-2]
 			dataList.clear()
-			dataList.append(lastData)
+			dataList.append(lastData.split(','))
 			modificationTime = lastChange
-			plot(dataList)
+			plot(dataList, 1)
 	elif app.fileImport != "" and imported == 0:
 		fileName = app.fileImport
 		pullData = open(fileName,"r").read()
@@ -462,9 +472,10 @@ imported = 0
 root = tk.Tk()
 p0 = Popen(['make', 'update'], stdin=PIPE, stdout=PIPE, stderr=PIPE)
 output0, er0 = p0.communicate(b"")
+#print(output0, er0)
 if er0.decode() != "":
 	tkMessageBox.showinfo("Aviso", "Não foi possível verificar atualizações!\nVocê pode estar desconectado da internet!\nO programa pode estar sendo executado com uma versão desatualizada!", parent = root)
-if output0.decode() != "git pull\nAlready up to date.\n" and output0.decode() != "git pull\n":
+elif output0.decode() != "git pull\nAlready up to date.\n" and output0.decode() != "git pull\n" and output0.decode() != "git pull\nAlready up-to-date.\n":
 	tkMessageBox.showinfo("Reiniciar", "Atualização encontrada!\nSerá necessário reiniciar a aplicação!", parent = root)
 	restart_program()
 app = Application(master=root)
