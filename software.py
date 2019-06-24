@@ -8,6 +8,7 @@ import matplotlib.animation as animation
 import matplotlib
 import matplotlib.pyplot as plt
 import threading
+import calibracao
 import serial, serial.rs485
 from math import *
 from numpy import *
@@ -28,88 +29,6 @@ from datetime import datetime
 from multiprocessing import Process
 from MultiListbox import *
 from subprocess import Popen, PIPE
-'''
-ser3 = serial.Serial(
-	port='/dev/ttyUSB0',
-	baudrate=9600,
-	parity=serial.PARITY_NONE,
-	stopbits=serial.STOPBITS_TWO,
-	bytesize=serial.EIGHTBITS
-)'''
-# ser.isOpen()
-## TESTES COM VIRTUALIZACAO
-#ser2 = serial.Serial(
-#	port='/dev/tnt0',
-#	baudrate=9600,
-#	parity=serial.PARITY_ODD,
-#	stopbits=serial.STOPBITS_TWO,
-#	bytesize=serial.EIGHTBITS
-#)
-def receive():
-	while(1):
-		leng = 0
-		reading = ' '
-		try:
-			ser3.flushInput()
-			reading = ser3.readline()
-			saida = ''
-		except:
-			print("Erro de leitura, confira a conexão")
-			time.sleep(2)
-		leng = len(reading)
-		if(reading[0] == ":" and leng >= 6*4+1 and reading[leng-1] == "|"):
-			try:
-				readed2str = bytearray(reading)
-				#reading.replace('\xad', '')
-				try:
-					readed2str[:1].decode()
-				except:
-					del readed2str[0]
-				for i in range(1, leng, 4):
-					saida += readed2str.decode()[i]
-					saida += readed2str.decode()[i+1]
-					saida += readed2str.decode()[i+2]
-					saida += readed2str.decode()[i+3]
-				readed = codecs.decode(saida, "hex")
-				readed = readed.decode("utf-8")
-				complete = []
-				fileName = "temperature_" + readed[0] + "_" + Application.strDate + ".csv"
-				media = 0
-				tSensores = 6
-				for i in range(0, tSensores): # -0 a +100
-					val = float(readed[1].split(';')[i])*100/1024
-					complete.append(val)
-					media += val
-				media /= tSensores
-				j = 1
-				print(complete)
-				for b in complete:
-					if((b < (media - 25)) or (b > (media + 25))):
-						tkMessageBox.showerror("Atencao", "Sensor " + str(j) +" esta com um diferenca grande de temperatura em relacao aos demais")
-					elif((b < (media - 10)) or (b > (media + 10))):
-						tkMessageBox.showwarning("Atencao","Sensor " + str(j) +" esta com um diferenca pequena de temperatura em relacao aos demais")
-					j += 1
-				with open(fileName, 'a') as csvfile:
-					spamwriter = csv.writer(csvfile, delimiter=';', quoting=csv.QUOTE_MINIMAL)
-					spamwriter.writerow(complete[:Application.sensor])
-					csvfile.close()
-				time.sleep(1)
-			except:
-				print("Erro de conversão, aguarde a próxima tentativa")
-		else:
-			print("Erro na recebimento")
-		try:
-			ser3.close()
-			time.sleep(2)
-			ser3.open()
-		except:
-			print("Problema no serial, reiniciando")
-			try:
-				ser3.open()
-			except:
-				pass
-
-tempera = threading.Thread(target=receive, daemon=True)
 
 class Application(tk.Frame):
 	tempTotal = []
@@ -364,33 +283,6 @@ def restart_program():
 	python = sys.executable
 	os.execl(python, python, * sys.argv)
 
-def func(x, a, c, d):
-	return a*np.exp(-c*x)+d
-
-def frange(a, b, p = 0.01):
-	l = []
-	while a <= b:
-		l.append(a)
-		a += p
-	return l
-
-def mountFuncTeste(a, c, d):
-	return "{}*exp(-{}*x)+{}".format(a, c, d)
-
-def expo(X, Y):
-	x = np.array(X)
-	y = np.array(Y)
-	popt, pcov = curve_fit(func, x, y, p0=(1, 1e-2, 1e-2), maxfev=50000)
-	xx = np.linspace(x[0]-60, len(x)*10+60, 1000)
-	yy = func(xx, *popt)
-	print(mountFuncTeste(*popt))
-	a.set_xlim(x[0]-10, x[len(x)-1]+10)
-	a.set_ylim(y[len(y)-1]-10, y[0]+10)
-	a.set_title(mountFuncTeste(*popt), fontsize=11)
-	f2 = lambda x : eval(mountFuncTeste(*popt))
-	a.plot([x for x in frange(int(x[0])-10, int(x[len(x)-1])+10)], [f2(x) for x in frange(int(x[0])-10, int(x[len(x)-1])+10)], label="Fitted Curve", color='m')
-	plt.show()
-
 dataList = []
 colorConf = ['ro', 'go', 'bo', 'yo', 'co', 'ko']
 pause = True
@@ -398,15 +290,37 @@ pause = True
 def get_time():
 	return time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(int(time.time())))
 
+media = 0
+def checkTemp(readed):
+	global media
+	j = 0
+	for b in readed:
+		b = float(b)
+		if app.CheckVars[j].get() == 1:
+			if((b < (media - 25)) or (b > (media + 25))):
+				tkMessageBox.showerror("Atencao", "Sensor " + str(j) +" esta com um diferenca grande de temperatura em relacao aos demais")
+			elif((b < (media - 10)) or (b > (media + 10))):
+				tkMessageBox.showwarning("Atencao","Sensor " + str(j) +" esta com um diferenca pequena de temperatura em relacao aos demais")
+		j += 1
 
+def getNumSens():
+	global qtdSensoresSelecionados
+	qtdSensoresSelecionados = 0
+	for sens in range(0, app.sensor):
+		if app.CheckVars[sens].get() == 1:
+			qtdSensoresSelecionados += 1
+			
+qtdSensoresSelecionados = 0
 def replotSensor():
-	global colorConf, globInter
+	global colorConf, globInter, qtdSensoresSelecionados
+	qtdSensoresSelecionados = 0
 	a.clear()
 	for i in range(0, len(app.inputs)):
 		k = 0
 		for j in range(1, len(app.inputs[i])):
 			if app.CheckVars[k].get() == 1:
 				a.plot(int(i*globInter), float(app.inputs[i][j]), colorConf[j-1])
+				getNumSens()
 			if k < app.sensor-1:
 				k += 1
 	a.set_xlabel('Tempo (s)')
@@ -414,23 +328,38 @@ def replotSensor():
 	plt.show()
 
 def plot(dataList, n = 3):
-	global pause, globInter, colorConf
+	global pause, globInter, colorConf, media, qtdSensoresSelecionados
 	a.clear()
 	for line in dataList:
+		media = 0
 		if line:
 			lines = []
-			lines.append(get_time())
-			#print(line)
+			#print(line.split(';'))
 			if n == 1:
-				for i in line:
-					lines.append(int(i)*0.31027)
+				lines.append(get_time())
+				for i in range(0, len(line)):
+					val = int(line[i])*0.31027 + calibracao.sensores[i-1]
+					if app.CheckVars[i].get() == 1:
+						media += val
+					lines.append(val)
 			else:
-				[lines.append(line[i:i+n].replace(';', '').replace(',', '').replace('\n', '').replace(':','').replace('#','')) for i in range(1, len(line), n)]
+				for i in line.split(';'):
+					lines.append(i)
+					try:
+						media += float(i)
+					except:
+						pass
 			[lines.append(0.0) for i in range(len(lines), 7)]
-			with open(app.fileName, 'a') as csvfile:
-					spamwriter = csv.writer(csvfile, delimiter=';', quoting=csv.QUOTE_MINIMAL)
-					spamwriter.writerow(lines)
-					csvfile.close()
+			if imported == 0:
+				with open(app.fileName, 'a') as csvfile:
+						spamwriter = csv.writer(csvfile, delimiter=';', quoting=csv.QUOTE_MINIMAL)
+						spamwriter.writerow(lines)
+						csvfile.close()
+				if qtdSensoresSelecionados > 0:
+					media /= qtdSensoresSelecionados
+				print(media, qtdSensoresSelecionados)
+				checkTemp(lines[1:])
+				
 			app.inputs.append(lines)
 			app.atualizaMultiList()
 			try:
@@ -445,9 +374,7 @@ def plot(dataList, n = 3):
 	plt.show()
 
 def animate(i = 1):
-	global pause, modificationTime
-	global dataList
-	global imported
+	global pause, modificationTime, dataList, imported
 	#print(app.fileImport)
 	if not pause and app.fileImport == "":
 		#print("[" + get_time() + "] CHECK")
@@ -466,7 +393,7 @@ def animate(i = 1):
 		pullData = open(fileName,"r").read()
 		dataList = pullData.split('\n')
 		imported = 1
-		plot(dataList, 8)
+		plot(dataList)
 
 imported = 0
 root = tk.Tk()
