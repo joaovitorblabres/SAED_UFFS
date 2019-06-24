@@ -357,7 +357,7 @@ def plot(dataList, n = 3):
 						csvfile.close()
 				if qtdSensoresSelecionados > 0:
 					media /= qtdSensoresSelecionados
-				print(media, qtdSensoresSelecionados)
+				#print(media, qtdSensoresSelecionados)
 				checkTemp(lines[1:])
 				
 			app.inputs.append(lines)
@@ -380,14 +380,11 @@ def animate(i = 1):
 		#print("[" + get_time() + "] CHECK")
 		Board = "B1"
 		fileName = "/home/pi/monitor_temperatura_UFFS/arquivos/temperatura.csv"
-		lastChange = datetime.fromtimestamp(os.path.getmtime(fileName))
-		if modificationTime != lastChange:
-			pullData = open(fileName,"r").read()
-			lastData = pullData.split('\n')[-2]
-			dataList.clear()
-			dataList.append(lastData.split(','))
-			modificationTime = lastChange
-			plot(dataList, 1)
+		pullData = open(fileName,"r").read()
+		lastData = pullData.split('\n')[-2]
+		dataList.clear()
+		dataList.append(lastData.split(','))
+		plot(dataList, 1)
 	elif app.fileImport != "" and imported == 0:
 		fileName = app.fileImport
 		pullData = open(fileName,"r").read()

@@ -1,6 +1,6 @@
 sensores = []
 #SENSOR 0
-sensores.append(0)
+sensores.append(2.1)
 #SENSOR 1
 sensores.append(1.5)
 #SENSOR 2
